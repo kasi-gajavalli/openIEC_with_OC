@@ -8,7 +8,6 @@ import numpy as np
 from pyOC import opencalphad as oc
 from pyOC import PhaseStatus as phStat
 from pyOC import GridMinimizerStatus as gmstat
-import math
 
 
 class CoherentGibbsEnergy(object): 
@@ -31,21 +30,27 @@ class CoherentGibbsEnergy(object):
         self.mass=0.
         
     
-    def eqfunc(self,gmStat):
+    def eqfunc(self,gmStat,element,multi_phase_analysis):
         
-       # setting verbosity (True or False - default), if set to yes, in particular, when getters are called the returned values are displayed in a comprehensive way
+        # setting verbosity (True or False - default), if set to yes, in particular, when getters are called the returned values are displayed in a comprehensive way
         oc.setVerbosity(self.setverb)
         
          # tdb filepath
         tdbFile=self.pathname+self.db
-#        print(tdbFile)
+        #print(tdbFile)
          # reading tdb
         oc.readtdb(tdbFile,self.comps)
-        oc.setPhasesStatus(('*',),phStat.Suspended)
-        oc.setPhasesStatus(('LIQUID',),phStat.Entered)
         
-        ##oc.setPhasesStatus(('C1_FCC',),phStat.Suspended)
-#        oc.setPhasesStatus((self.phasename[1],self.phasename[0]),phStat.Entered)
+        if multi_phase_analysis == False:
+            if element == 'O':
+                oc.setPhasesStatus((self.phasename[1],),phStat.Suspended)
+                oc.setPhasesStatus((self.phasename[0],),phStat.Entered)
+            else:
+                oc.setPhasesStatus(('*',),phStat.Suspended)
+                oc.setPhasesStatus((self.phasename[0],),phStat.Entered)
+                
+        else:
+            oc.setPhasesStatus((self.phasename[0],self.phasename[1]),phStat.Entered)
         
          # set pressure
         oc.setPressure(self.P)
@@ -54,7 +59,7 @@ class CoherentGibbsEnergy(object):
           # set temperature
         oc.setTemperature(self.T)
     
-#    x0=x0
+        # x0=x0
         oc.setElementMolarAmounts(self.x0)
        
         #Equilibrium 
@@ -106,8 +111,5 @@ class CoherentGibbsEnergy(object):
         return self.cd
     
     def getMass(self):
-         return self.mass
-#    
-
-#		
+         return self.mass		
 

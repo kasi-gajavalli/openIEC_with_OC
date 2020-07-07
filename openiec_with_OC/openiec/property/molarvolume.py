@@ -36,13 +36,11 @@ class MolarVolume(object):
     	return constituentMassFractions
     
     ## function to calculate molar volume from constituent 
-    def calculateVolume(self,temperature,phaseConstituentComposition,constituentsDescription,constituentMassDensityLaws,mass):
-#        if (len(phaseConstituentComposition) != 1):
-#            print('error: not a single phase (%s) at equilibrium for molar volume calculation' % list(phaseConstituentComposition.keys()))
-#            exit() 
-        volume={}
+    def calculateVolume(self,temperature,phaseConstituentComposition,constituentsDescription,constituentMassDensityLaws,mass, phase_name):
+        if (len(phaseConstituentComposition) != 1):
+            print('Warning: not a single phase (%s) at equilibrium for molar volume calculation' % list(phaseConstituentComposition.keys()))
 #        for phases in phaseConstituentComposition.keys():
-        constituentMolarFractions=phaseConstituentComposition['LIQUID']
+        constituentMolarFractions=phaseConstituentComposition[phase_name]
 #        print('##################',phaseConstituentComposition[0],'#########################')
 		# mass fractions from molar fractions
         constituentMassFractions=self.convertConstituentMolarToMassFractions(constituentMolarFractions,constituentsDescription)
@@ -58,17 +56,17 @@ class MolarVolume(object):
         return volume
     
     ## evaluate partial molar volumes by an approximation of the first order volume derivative by a second-order finite difference formula
-    def calculatePartialMolarVolume(self,temperature,pcc,cd,pcc_m,cd_m,constituentMassDensityLaws, epsilon,mass,mass_m):
+    def calculatePartialMolarVolume(self,temperature,pcc,cd,pcc_m,cd_m,constituentMassDensityLaws, epsilon,mass,mass_m, phase_name):
         # evaluate (elementwise) partial molar volume (approximation of first order volume derivative by a second-order finite difference formula)
         
         # evaluate volume for n[element]+epsilone
-        volumePlus = self.calculateVolume(temperature,pcc,cd,constituentMassDensityLaws,mass)
+        volumePlus = self.calculateVolume(temperature,pcc,cd,constituentMassDensityLaws,mass, phase_name)
         
         # evaluate volume for n[element]-epsilone
 #         modifiedElementMolarAmounts[element] -= 2.0*epsilon
 #        oc.setElementMolarAmounts(modifiedElementMolarAmounts)
 #        oc.calculateEquilibrium(gmStat.Off)
-        volumeMinus = self.calculateVolume(temperature,pcc_m,cd_m,constituentMassDensityLaws,mass_m)
+        volumeMinus = self.calculateVolume(temperature,pcc_m,cd_m,constituentMassDensityLaws,mass_m, phase_name)
         
         partialMolarVolumes = (volumePlus - volumeMinus)/(2.0*epsilon)
         # verify that V = sum_i n_i V_i
