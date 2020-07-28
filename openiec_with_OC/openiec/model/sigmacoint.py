@@ -8,7 +8,6 @@ from math import fabs
 import numpy as np
 from functools import reduce
 
-
 class SigmaCoherentInterface(object):
     """
     Contruct the interfacial energy of the coherent interface and their partial quantaties.
@@ -25,12 +24,13 @@ class SigmaCoherentInterface(object):
         The partial molar volumes of components.
     """
 
-    def __init__(self, alphafuncs, betafuncs, mueq, vmis):
+    def __init__(self, alphafuncs, betafuncs, mueq, vmis, comps):
         self.alphafuncs = alphafuncs
         self.betafuncs = betafuncs
         self.mueq = mueq
         self.vmis = vmis
         self.Nav = 6.02 * 10.0 ** (23.0)
+        self.comps = comps
 
     def infenergy(self, x):
         """
@@ -40,10 +40,14 @@ class SigmaCoherentInterface(object):
         x: list
             Interfacial composition.
         """
+        x1 = list(x)
+        
+        x1 = {self.comps[0]:x[0], self.comps[1]:x[1], self.comps[2]:1-x[0]-x[1]}   # ASK ????????????????????????????????????
+        
         sigma = [
             2.48
             * (
-                0.5 * (self.alphafuncs(list(x))[i] + self.betafuncs(list(x))[i])
+                0.5 * (self.alphafuncs(x1)[i] + self.betafuncs(x1)[i])
                 - self.mueq[i]
             )
             * ((self.vmis[i](x) ** (-2.0 / 3.0)) * (self.Nav ** (-1.0 / 3.0)))

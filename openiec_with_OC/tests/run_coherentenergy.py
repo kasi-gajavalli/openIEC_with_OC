@@ -1,5 +1,5 @@
-from coherentenergy import CoherentGibbsEnergy
-from molarvolume import MolarVolume, InterficialMolarVolume
+from openiec.property.coherentenergy import CoherentGibbsEnergy
+from openiec.property.molarvolume import MolarVolume, InterficialMolarVolume
 from openiec.calculate.calcsigma import SigmaCoherent
 from openiec.calculate.minimize import SearchEquilibrium, ComputeEquilibrium
 from pycalphad import Database
@@ -12,7 +12,7 @@ T = 800.00
 # Given initial alloy composition. x0 is the mole fraction of Al.
 x0 = [0.2]  
 # Render thermodynamic database.
-db = Database("/home/kg245220/code/openiec_with_OC/demo/NiAlHuang1999.tdb")
+db = Database("NiAlHuang1999.tdb")
 # Define components in the interface.
 comps = ["NI", "AL", "VA"]
 # Two phases separated by the interface.

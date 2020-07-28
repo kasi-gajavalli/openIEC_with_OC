@@ -221,7 +221,7 @@ def SigmaCoherent(
     Parameters
     -----------
     T: float
-        Given temperature.
+        Given temperatur
     x0: list
         Initial alloy composition.
     db : Database

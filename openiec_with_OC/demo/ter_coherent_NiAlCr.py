@@ -1,6 +1,7 @@
-from openiec.calculate.calcsigma import SigmaCoherent
-from pycalphad import Database
-
+#import sys
+#sys.path.append('/home/kg245220/code/openiec_with_OC/openiec/')
+from openiec.calculate.PyOC_calcsigma import SigmaCoherent
+from collections import OrderedDict
 
 def test():
     """
@@ -8,22 +9,33 @@ def test():
     """
     # Given temperature.
     T = 1273
+    P = 101325
+    ##set verbosity
+    setverb=False
     # Given initial alloy composition. x0 corresponds to the mole fractions of Al and Cr.
-    x0 = [0.180000, 0.008100]  
+    x0 = OrderedDict()
+    x0['NI'] = 0.180000
+    x0['AL'] = 0.008100
+    x0['CR'] = 1-0.180000-0.008100
+    
     # Render thermodynamic database.
-    db = Database("NiAlCrHuang1999.tdb")
+    pathname = '/home/kg245220/code/openiec_with_OC/demo/' #'/home/kg245220/code/openiec_with_OC/demo/'
+    db = pathname+'NiAlCrHuang1999.tdb' #'NiAlCrHuang1999.tdb'
     # Define components in the interface.
-    comps = ["NI", "AL", "CR", "VA"]
+    comps = ('NI', 'AL', 'CR')
     # Two phases separated by the interface.
-    phasenames = ["FCC_A1", "GAMMA_PRIME"]
+    phasenames=('FCC_A1', 'GAMMA_PRIME')
 
     # Molar volumes of pure components to construct corresponding molar volume database.
     # Molar volume of Al.
-    val = "10.269*10.0**(-6.0) + (3.860*10.0**(-5)*10.0**(-6.0))*T**1.491"
+#    val = "10.269*10.0**(-6.0) + (3.860*10.0**(-5)*10.0**(-6.0))*T**1.491"
+    val= 1.1912941861496768e-05
     # Molar volume of Ni.
-    vni = "6.718*10.0**(-6.0) + (2.936*10.0**(-5)*10.0**(-6.0))*T**1.355"
+#    vni = "6.718*10.0**(-6.0) + (2.936*10.0**(-5)*10.0**(-6.0))*T**1.355"
+    vni= 7.190931823060084e-06
     # Molar volume of Cr.
-    vcr = "7.23*10.0**(-6.0)"
+#    vcr = "7.23*10.0**(-6.0)"
+    vcr= 7.23e-06
     purevms = [[vni, val, vcr], ]*2
 
     # A composition range for searching initial interfacial equilirium composition.
@@ -40,6 +52,8 @@ def test():
         purevms=purevms,
         limit=limit,
         dx=dx,
+        P=P,
+        setverb=setverb
     )
 
     # Print the calculated interfacial energy with xarray.Dataset type.

@@ -3,6 +3,8 @@ Resolve the interfacial equilibrium condition in Kaptay’s models.
 """
 
 from openiec.utils.makemultigrid import makemultigrid
+#import sys
+#sys.path.append('/home/kg245220/code/openiec_with_OC/openiec/model')
 from scipy.optimize import minimize
 from math import fabs
 import numpy as np

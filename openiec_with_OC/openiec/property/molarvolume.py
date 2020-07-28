@@ -1,95 +1,78 @@
 """
 Construct the molar volume CALPHAD model.
 """
-import sys
-sys.path.append('/home/kg245220/code/pyOC')
-import os
-import pyOC
-import itertools
+
 import numpy as np
 import sympy as sy
-import matplotlib.pyplot as plt
-from pyOC import opencalphad as oc
-from pyOC import PhaseStatus as phStat
-from pyOC import GridMinimizerStatus as gmStat
+import pycalphad.variables as V
+from pycalphad import Database, Model
 from sympy import lambdify, symbols, sympify, diff
+import itertools
 from functools import reduce
 
 
-
-
 class MolarVolume(object):
+    """
+    Construct molar volumes of bulk phases.
 
-######
-# Functions for partial molar volumes evaluation
-######
-## convert constituent molar fractions to mass fractions
-    def convertConstituentMolarToMassFractions(self,constituentMolarFractions,constituentsDescription):
-    	constituentMassFractions=constituentMolarFractions.copy()
-    	tot=0.0
-    	for constituent in constituentMassFractions:
-    		constituentMassFractions[constituent] *= constituentsDescription[constituent]['mass']
-    		tot += constituentMassFractions[constituent]
-    	fac = 1.0/tot
-    	for constituent in constituentMassFractions:
-    		constituentMassFractions[constituent] *= fac
-    	return constituentMassFractions
-    
-    ## function to calculate molar volume from constituent 
-    def calculateVolume(self,temperature,phaseConstituentComposition,constituentsDescription,constituentMassDensityLaws,mass, phase_name):
-        if (len(phaseConstituentComposition) != 1):
-            print('Warning: not a single phase (%s) at equilibrium for molar volume calculation' % list(phaseConstituentComposition.keys()))
-#        for phases in phaseConstituentComposition.keys():
-        constituentMolarFractions=phaseConstituentComposition[phase_name]
-#        print('##################',phaseConstituentComposition[0],'#########################')
-		# mass fractions from molar fractions
-        constituentMassFractions=self.convertConstituentMolarToMassFractions(constituentMolarFractions,constituentsDescription)
-		# ideal mixing law to evaluate mixture density
-#            print('*******************',constituentMassFractions,'********************')
-        density=0.0
-        for constituent, massFraction in constituentMassFractions.items():
-            density += massFraction/constituentMassDensityLaws[constituent](temperature)
-        density=1.0/density
-    
-#		# total mass (mass is 'B' in OC)
-        volume=mass/density
-        return volume
-    
-    ## evaluate partial molar volumes by an approximation of the first order volume derivative by a second-order finite difference formula
-    def calculatePartialMolarVolume(self,temperature,pcc,cd,pcc_m,cd_m,constituentMassDensityLaws, epsilon,mass,mass_m, phase_name):
-        # evaluate (elementwise) partial molar volume (approximation of first order volume derivative by a second-order finite difference formula)
-        
-        # evaluate volume for n[element]+epsilone
-        volumePlus = self.calculateVolume(temperature,pcc,cd,constituentMassDensityLaws,mass, phase_name)
-        
-        # evaluate volume for n[element]-epsilone
-#         modifiedElementMolarAmounts[element] -= 2.0*epsilon
-#        oc.setElementMolarAmounts(modifiedElementMolarAmounts)
-#        oc.calculateEquilibrium(gmStat.Off)
-        volumeMinus = self.calculateVolume(temperature,pcc_m,cd_m,constituentMassDensityLaws,mass_m, phase_name)
-        
-        partialMolarVolumes = (volumePlus - volumeMinus)/(2.0*epsilon)
-        # verify that V = sum_i n_i V_i
-#    	oc.setElementMolarAmounts(elementMolarAmounts)
-#    	oc.calculateEquilibrium(gmStat.Off)
-#    	exactVolume = self.calculateVolume(temperature,oc.getPhasesAtEquilibrium().getPhaseConstituentComposition(),oc.getConstituentsDescription(),constituentMassDensityLaws)
-#    	approxVolume = 0.0
-#    	for element, molarAmount in oc.getPhasesAtEquilibrium().getPhaseElementComposition()[list(oc.getPhasesAtEquilibrium().getPhaseElementComposition())[0]].items():
-#    		approxVolume+=molarAmount*partialMolarVolumes[element]
-#       return partialMolarVolumes,exactVolume,approxVolume
-        return partialMolarVolumes
+    Parameters
+    -----------
+    db : Database
+        Database containing the relevant parameters.
+    comps : list
+        Names of components to consider in the calculation.
+    phasename : str
+        Names of the phase to consider in the calculation.    
+    purevm: list 
+        The molar volume of the components.
+    vm: a sympy expression
+        The molar volume of the bulk phase.
+    """
 
-#    epsilons=np.array([1E-1,1E-2,1E-3,1E-4,1E-5,1E-6])
-#    volumeErrors=np.empty(epsilons.size)
-#    partialMolarVolumesU=np.empty(epsilons.size)
-#    partialMolarVolumesZR=np.empty(epsilons.size)
-#    partialMolarVolumesO=np.empty(epsilons.size)
-#    for i in range(epsilons.size):
-#    	epsilon=epsilons[i]
-#    	partialMolarVolumes,exactVolume,approxVolume=self.calculatePartialMolarVolume(temperature,elementMolarAmounts,constituentMassDensityLaws,epsilon)
-#    	volumeErrors[i]=(approxVolume/exactVolume-1.0)*100.0
-#    	partialMolarVolumesU[i]=partialMolarVolumes['U']
-#    	partialMolarVolumesZR[i]=partialMolarVolumes['ZR']
-#    	partialMolarVolumesO[i]=partialMolarVolumes['O']
-#    	print("partial molar volumes: ",partialMolarVolumes)
-#    	print('volume error = {0:3.2e}%  '.format(volumeErrors[i]))
+    def __init__(self, db, phasename, comps, purevm, intervm=[]):
+        self.xs = [V.X(each) for each in comps if each != "VA"]
+        self.vars_xs = [
+            (self.xs[0], 1.0 - sum([self.xs[i] for i in range(1, len(self.xs))]))
+        ]
+        self.xxs = [self.xs[i] for i in range(1, len(self.xs))]
+        self.vm = reduce(
+            lambda x, y: x + y, [x * sympify(v) for x, v in zip(self.xs, purevm)]
+        ).subs({"T": V.T})
+
+
+def InterficialMolarVolume(alphavm, betavm):
+    """
+    Construct the partial molar volume of the interface.
+
+    Parameters
+    -----------
+    alphavm: a sympy expression
+        The molar volume of a bulk phase.
+    betavm: a sympy expression
+        The molar volume of another bulk phase.
+    vm: a sympy expression
+        The molar volume of the interfacial layer.
+    vmis: list
+        The partial molar volumes of components in the interface.
+    """
+#    a = alphavm
+#    b = betavm
+    xs = alphavm.xs
+    vm = 0.5 * (alphavm.vm + betavm.vm)
+    dvmdxs = [diff(vm, x) for x in xs]
+
+    sumvmi = reduce(lambda x, y: x + y, [x * dvmdx for x, dvmdx in zip(xs, dvmdxs)])
+
+    vmis = [vm + dvmdx - sumvmi for dvmdx in dvmdxs]
+
+    return [lambdify((alphavm.xxs, V.T), vmi, "numpy", dummify=True) for vmi in vmis]
+
+
+if __name__ == "__main__":
+    db = Database("NiAl.tdb")
+    alphavm = MolarVolume(db, "FCC_A1", ["Ni", "Al"], ["1.0*T", "2.0*T"])
+    betavm = MolarVolume(db, "LIQUID", ["Ni", "Al"], ["1.0*T", "2.0*T"])
+    vm = InterficialMolarVolume(alphavm, betavm)
+
+    print(vm[0]([0.9], 100.0), vm[1]([0.9], 100.0))
+

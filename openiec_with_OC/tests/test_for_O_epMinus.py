@@ -6,8 +6,8 @@ Created on Tue Jul  7 10:47:57 2020
 @author: kg245220
 """
 
-import sys
-sys.path.append('/home/kg245220/code/pyOC')
+#import sys
+#sys.path.append('/home/kg245220/code/pyOC')
 import os
 import pyOC
 from pyOC import opencalphad as oc
@@ -41,8 +41,8 @@ setverb=False
 
 
 
-x0['O'] += 0.1
-x0['O'] -= 2.0*0.1
+#x0['O'] += 0.1
+#x0['O'] -= 2.0*0.1
 
 # setting verbosity (True or False - default), if set to yes, in particular, when getters are called the returned values are displayed in a comprehensive way
 oc.setVerbosity(True)
@@ -57,7 +57,7 @@ elems=('O', 'U', 'ZR')
 oc.readtdb(tdbFile,elems)
 
 # play with phase status
-oc.setPhasesStatus(('C1_FCC',),phStat.Suspended)
+oc.setPhasesStatus(('*',),phStat.Suspended)
 phaseNames=('LIQUID',)
 oc.setPhasesStatus(phaseNames,phStat.Entered)
 
@@ -79,6 +79,8 @@ oc.calculateEquilibrium(gmStat.Off)
 phasesAtEquilibrium=oc.getPhasesAtEquilibrium()
 
 pcc = phaseConstituentComposition=phasesAtEquilibrium.getPhaseConstituentComposition()
+
+
 mass=oc.getScalarResult('B')
 
 #

@@ -1,92 +1,89 @@
-#from openiec.calculate.calcsigma import SigmaCoherent
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jul 18 11:01:22 2020
+
+@author: kg245220
+"""
+
+import os
 import sys
 sys.path.append('/home/kg245220/code/pyOC')
 sys.path.append('/home/kg245220/code/openiec_with_OC/openiec/property')
-import os
-#import pyOC
-#from pyOC import opencalphad as oc
-#from pyOC import PhaseStatus as phStat
+import numpy as np
+import matplotlib.pyplot as plt
+import pyOC
+from pyOC import opencalphad as oc
+from pyOC import PhaseStatus as phStat
 #from pyOC import GridMinimizerStatus as gmStat
-from coherentenergy import CoherentGibbsEnergy
-from molarvolume import MolarVolume
+from molarVolume import MolarVolume_OC
 
+oc.setVerbosity(False)
+## tdb filepath
+tdbFile=os.environ.get('OCDATA')+'/feouzr.tdb'
+## reading tdb
+elems=('O', 'U', 'ZR')
+oc.readtdb(tdbFile,elems)
+## suspend all phases except the liquid one
+oc.setPhasesStatus(('* ',),phStat.Suspended)
+oc.setPhasesStatus(('LIQUID',),phStat.Entered)
+## set pressure
+oc.setPressure(1E5)
 
-
-def test():
-    #print(os.getpwd()) 
-    pathname='/home/kg245220/code/OpenCalphad/cea_api_tests/Java/data/'
-    # Given temperature.
-    T= 2773
-    #Given pressure
-    P=1E5
-    # Render thermodynamic database.
-    db = 'feouzr.tdb'
-     # Define components in the interface.
-    comps = ('U', 'O', 'ZR')
-    # Given initial alloy composition. x0 corresponds to the mole fractions of Al and Cr.
-    x0 = {
-	'U' : 0.343298,
-	'O' : 0.414924,
-	'ZR': 0.241778
-} 
-   
-    # Two phases separated by the interface.
-    phasenames = ('LIQUID','C1_FCC')
-    ##set verbolsity
-    setverb=False
-         
-#    cge = CoherentGibbsEnergy(T, P, db, comps, x0, phasenames,setverb,pathname)
-#    cge.eqfunc('On')
-#    cge.generate_phase_info()    
-#    pec=cge.getPhaseElementFraction()
-#    pcc=cge.getPhaseConstituentComposition()
-#    cge.getPhaseSites()
-#    cge.getChemicalPotential()
-#    cd=cge.getConstituentsDescription()
-#    ma=cge.getMolarAmounts()
-    
-#    print(ma)
-    
- 
-    # mass density laws (from Barrachin2004)
-    coriumMassDensityLaws = {
+# mass density laws (from Barrachin2004)
+coriumMassDensityLaws = {
 	'U1'   : lambda T: 17270.0-1.358*(T-1408),
 	'ZR1'  : lambda T: 6844.51-0.609898*T+2.05008E-4*T**2-4.47829E-8*T**3+3.26469E-12*T**4,
 	'O2U1' : lambda T: 8860.0-9.285E-1*(T-3120),
 	'O2ZR1': lambda T: 5150-0.445*(T-2983),
 	'O1'   : lambda T: 1.141 # set to meaningless value but ok as, no 'free' oxygen in the considered mixtures
 }
-    epsilon = 1E-1
-    
-    partialMolarVolumes={}
-     
-    for elems in x0.keys():
-            
-        
-        x0ep = x0.copy()
-        
-        
-        x0ep[elems] += epsilon
-        cge = CoherentGibbsEnergy(T, P, db, comps, x0ep, phasenames, setverb, pathname)
-        cge.eqfunc('Off',elems,False)
-        cd=cge.getConstituentsDescription()
-        pcc=cge.getPhaseConstituentComposition()
-        mass=cge.getMass()
-                
-        
-        x0ep[elems] -= 2.*epsilon
-        cge_m = CoherentGibbsEnergy(T, P, db, comps, x0ep, phasenames,setverb,pathname)
-        cge_m.eqfunc('Off',elems,False)
-        cd_m=cge_m.getConstituentsDescription()
-        pcc_m=cge_m.getPhaseConstituentComposition()
-        mass_m=cge_m.getMass()
-        
-        molar_vol = MolarVolume()
-        partial_molar_vol = molar_vol.calculatePartialMolarVolume(T,pcc,cd,pcc_m,cd_m,coriumMassDensityLaws, epsilon,mass,mass_m, phasenames[0])
-        partialMolarVolumes[elems] = partial_molar_vol
-    
-    
-    return partialMolarVolumes
 
-if __name__ == "__main__":
-    print(test())
+# temperature and composition for which partial molar volumes are to be evaluated
+temperature=3000
+elementMolarAmounts = {
+	'U' : 0.343298,
+	'O' : 0.414924,
+	'ZR': 0.241778
+}
+
+# testing for different values of the epsilon parameter that is used in the finite difference formula)
+epsilons=np.array([1E-1,1E-2,1E-3,1E-4,1E-5,1E-6])
+volumeErrors=np.empty(epsilons.size)
+partialMolarVolumesU=np.empty(epsilons.size)
+partialMolarVolumesZR=np.empty(epsilons.size)
+partialMolarVolumesO=np.empty(epsilons.size)
+for i in range(epsilons.size):
+    epsilon=epsilons[i]
+    molar_vol = MolarVolume_OC()
+    partialMolarVolumes,exactVolume,approxVolume=molar_vol.calculatePartialMolarVolume(temperature,elementMolarAmounts,coriumMassDensityLaws,epsilon)
+    volumeErrors[i]=(approxVolume/exactVolume-1.0)*100.0
+    partialMolarVolumesU[i]=partialMolarVolumes['U']
+    partialMolarVolumesZR[i]=partialMolarVolumes['ZR']
+    partialMolarVolumesO[i]=partialMolarVolumes['O']
+    print("partial molar volumes: ",partialMolarVolumes)
+    print('volume error = {0:3.2e}%  '.format(volumeErrors[i]))
+	
+plt.rcParams["figure.figsize"] = (12,7)
+fig,ax=plt.subplots(2,2,constrained_layout=True)
+cax = ax[0,0]
+csf = cax.loglog(epsilons,np.abs(volumeErrors), color='red',linestyle='dashed',marker='o')
+cax.set_xlabel("$\\varepsilon$",fontsize=12)
+cax.set_ylabel("|volume error| (%)",fontsize=12)
+cax.grid(True)
+cax = ax[0,1]
+csf = cax.loglog(epsilons,partialMolarVolumesU, color='blue',linestyle='dashed',marker='x')
+cax.set_xlabel("$\\varepsilon$",fontsize=12)
+cax.set_ylabel("$V_U$",fontsize=12)
+cax.grid(True)
+cax = ax[1,0]
+csf = cax.loglog(epsilons,partialMolarVolumesZR, color='blue',linestyle='dashed',marker='x')
+cax.set_xlabel("$\\varepsilon$",fontsize=12)
+cax.set_ylabel("$V_{Zr}$",fontsize=12)
+cax.grid(True)
+cax = ax[1,1]
+csf = cax.loglog(epsilons,partialMolarVolumesO, color='blue',linestyle='dashed',marker='x')
+cax.set_xlabel("$\\varepsilon$",fontsize=12)
+cax.set_ylabel("$V_O$",fontsize=12)
+cax.grid(True)
+plt.show()
